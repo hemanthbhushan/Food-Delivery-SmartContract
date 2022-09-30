@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
 
-
 pragma solidity >=0.7.0 <0.9.0;
 
 // import "@openzeppelin/contracts/access/Ownable.sol";
@@ -51,16 +50,17 @@ constructor()ERC1155(""){
 
     NftIds[] public getThePurposeOfNftIds;
     Hotel[] registeredHotels;
+    HotelFoodItems[] listOfFoodItems;
     
     mapping (string => NftIds) public idToNfts;
     mapping  (address=>mapping(address => bool)) public whitelisteManager;
     mapping (address=>mapping(string=>uint)) public hotelId;
     mapping (uint=>HotelFoodItems) storeFoodItems;
+  //the cost of the food in the particular hotel  ex:in hotel x the biriyani costs 100rs  foodPrice[x][biriyani]=100rs
+    mapping(uint256=>mapping(string=>uint256)) foodPrice;
+
 
     //when hotel gets registered the manager of the hotel get the Nft as the proof use in the future for the hotel registration the nftId will be 1
-
-
-  
 
 
 //the hotel needs to be registered by hotel manager
@@ -166,19 +166,21 @@ constructor()ERC1155(""){
 
     //list the hotel items hotel wise
 
-    function listHotelFoodItems(string memory _hotelName,string[] memory _foodItems) external  {
+    function listHotelFoodItems(string memory _hotelName,string[] memory _foodItems,uint256[] memory _price) external  {
          string memory _purpose = "Hotel";
          require(whitelisteManager[owner()][msg.sender] == true,"hotelManger need to get approval from the owner");
          require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel manager is missing the hotel registration nft ");
-
+         require(_foodItems.length==_price.length,"price and noof items should be of the same length");
           uint256 getHotelId = hotelId[msg.sender][_hotelName];
 
           storeFoodItems[getHotelId].foodItems = _foodItems;
 
-          
+          for(uint256 i=0;i<_foodItems.length;i++){
+          foodPrice[getHotelId][_foodItems[i]] = _price[i] ;
+          }
+        
 
-
-    }
+}
 
   }
 
