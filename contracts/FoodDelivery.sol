@@ -11,18 +11,11 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 
 
 contract FoodDelivery is ERC1155,Ownable,Pausable{
-
-    
-   
-
-
 constructor()ERC1155(""){
 
 
 
 }
-
- 
 
  using Counters for Counters.Counter;
     Counters.Counter hotelCount;
@@ -246,10 +239,8 @@ function setDiscountNftBasedOnTotalBill(uint256[] memory _totalBill,string[] mem
     }
 }
 
+
   }
 
   
-
-
-
 
