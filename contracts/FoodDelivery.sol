@@ -28,6 +28,7 @@ constructor()ERC1155(""){
     Counters.Counter hotelCount;
     //the nft if for hotel registration is 1,for the user nft is 2
     Counters.Counter nftIdCount; 
+    Counters.Counter[] discountNftIdCount;
 
 
  struct Hotel{
@@ -60,6 +61,7 @@ constructor()ERC1155(""){
   //the cost of the food in the particular hotel  ex:in hotel x the biriyani costs 100rs  foodPrice[x][biriyani]=100rs
     mapping(uint256=>mapping(string=>uint256)) foodPrice;
     mapping(uint256 => uint256) internal discountNftToken;
+    mapping (uint256=>uint256) internal discountNftTotalsupply;
 
 
     //when hotel gets registered the manager of the hotel get the Nft as the proof use in the future for the hotel registration the nftId will be 1
@@ -218,6 +220,10 @@ function orderFood(string memory _hotelName,address _hotelAddress,string[] memor
      //500 = [100,200,300,400,500,600]
           for(uint256 i=0;i<=totalBill.length;i++){
               if(_totalBill<=totalBill[i]){
+                 discountNftIdCount[i].increment();
+                  uint256 _current = discountNftIdCount[i].current();
+                  require(_current<=discountNftTotalsupply[totalBill[i]],"all discount nfts are disturbuted ");
+
                    _mint(msg.sender,discountNftToken[totalBill[i]],1,"");
                    }
             }
@@ -233,12 +239,16 @@ function setDiscountNftBasedOnTotalBill(uint256[] memory _totalBill,string[] mem
     
     for(uint256 i = 0;i<_totalBill.length;i++){
         discountNftToken[_totalBill[i]] = idToNfts[_purpose[i]].nftId;
+        discountNftTotalsupply[_totalBill[i]] = idToNfts[_purpose[i]].totalSupply;
+
         totalBill.push(_totalBill[i]);
 
     }
 }
 
   }
+
+  
 
 
 
