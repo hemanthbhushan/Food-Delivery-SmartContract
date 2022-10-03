@@ -13,7 +13,7 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 contract FoodDelivery is ERC1155,Ownable,Pausable{
 
     
-    uint256[] totalMinted = [0,0];
+   
 
 
 constructor()ERC1155(""){
