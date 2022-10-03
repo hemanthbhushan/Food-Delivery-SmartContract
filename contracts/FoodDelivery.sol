@@ -32,7 +32,7 @@ constructor()ERC1155(""){
 
  struct Hotel{
         string hotelName; 
-        address hotelManager; 
+        address hotelAddress; 
         address hotelDeposit; 
         uint256 hotelId; 
     }
@@ -51,13 +51,15 @@ constructor()ERC1155(""){
     NftIds[] public getThePurposeOfNftIds;
     Hotel[] registeredHotels;
     HotelFoodItems[] listOfFoodItems;
-    
+    uint256[] totalBill;
+    uint256 public minBill;
     mapping (string => NftIds) public idToNfts;
     mapping  (address=>mapping(address => bool)) public whitelisteManager;
     mapping (address=>mapping(string=>uint)) public hotelId;
     mapping (uint=>HotelFoodItems) storeFoodItems;
   //the cost of the food in the particular hotel  ex:in hotel x the biriyani costs 100rs  foodPrice[x][biriyani]=100rs
     mapping(uint256=>mapping(string=>uint256)) foodPrice;
+    mapping(uint256 => uint256) internal discountNftToken;
 
 
     //when hotel gets registered the manager of the hotel get the Nft as the proof use in the future for the hotel registration the nftId will be 1
@@ -83,22 +85,22 @@ constructor()ERC1155(""){
         hotelId[msg.sender][hotelName] = Id; 
 
     }
-    function removeHotel(string memory _hotelName,address _hotelManager ) external  onlyOwner returns(uint256){
+    function removeHotel(string memory _hotelName,address _hotelAddress ) external  onlyOwner returns(uint256){
         string memory _purpose = "Hotel";
-        require(whitelisteManager[msg.sender][_hotelManager] == true,"hotelManger need to get approval from the owner");
+        require(whitelisteManager[msg.sender][_hotelAddress] == true,"hotelManger need to get approval from the owner");
         require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel manager is missing the hotel registration nft ");
 
-        uint256 getHotelId = hotelId[_hotelManager][_hotelName];
+        uint256 getHotelId = hotelId[_hotelAddress][_hotelName];
         uint256 length = registeredHotels.length;
          
     
         for(uint256 i=0;i< length;i++){
             if(registeredHotels[i].hotelId==getHotelId){
-                _burn(_hotelManager,idToNfts[_purpose].nftId,1);
+                _burn(_hotelAddress,idToNfts[_purpose].nftId,1);
                 registeredHotels[i] = registeredHotels[length-1];
                 registeredHotels.pop();
                 idToNfts[_purpose].totalSupply--;
-                delete hotelId[_hotelManager][_hotelName]; 
+                delete hotelId[_hotelAddress][_hotelName]; 
                 return getHotelId;
 
             }
@@ -106,10 +108,10 @@ constructor()ERC1155(""){
 }
 
 
-      function changeHotelManager(address _newManager,string memory _hotelName) external returns(address ){
+      function changeHotelAddress(address _newAddress,string memory _hotelName) external returns(address ){
           string memory _purpose = "Hotel";
           require(whitelisteManager[owner()][msg.sender] == true,"hotelManger need to get approval from the owner");
-          require(_newManager != address(0),"cant the make the zero address as the manager");
+          require(_newAddress != address(0),"cant the make the zero address as the manager");
           require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel is missing the hotel registration nft ");
           uint256 _Id = hotelId[msg.sender][_hotelName];
               
@@ -118,10 +120,10 @@ constructor()ERC1155(""){
                for(uint256 i=0;i<length;i++){
                    if(_Id== registeredHotels[i].hotelId){
                        //internal function erc1155
-                       _safeTransferFrom(msg.sender, _newManager,idToNfts[_purpose].nftId ,1,"");
+                       _safeTransferFrom(msg.sender, _newAddress,idToNfts[_purpose].nftId ,1,"");
                        whitelisteManager[owner()][msg.sender] = false;
-                       registeredHotels[i].hotelManager = _newManager;
-                       hotelId[_newManager][_hotelName] = _Id;
+                       registeredHotels[i].hotelAddress = _newAddress;
+                       hotelId[_newAddress][_hotelName] = _Id;
     }
                    count++;
                }
@@ -129,15 +131,15 @@ constructor()ERC1155(""){
                    revert("hotel is not registered");
                }
                 
-               return _newManager;
+               return _newAddress;
                //new manager should get the approval from the owner
  } 
 
  
 
 
-    function hotelManagerGetApproveFromOwner(address hotelManager,bool check) external  onlyOwner returns(bool){
-        return whitelisteManager[msg.sender][hotelManager] = check;
+    function hotelAddressGetApproveFromOwner(address hotelAddress,bool check) external  onlyOwner returns(bool){
+        return whitelisteManager[msg.sender][hotelAddress] = check;
 
 
     } 
@@ -177,9 +179,63 @@ constructor()ERC1155(""){
 
           for(uint256 i=0;i<_foodItems.length;i++){
           foodPrice[getHotelId][_foodItems[i]] = _price[i] ;
+
           }
         
 
+}
+
+function setMinBill(uint256 _minBill) external onlyOwner{
+    minBill = _minBill;
+}
+
+function foodMenu(address _hotelAddress,string memory _hotelName) public view returns(string[] memory){
+     uint256 getHotelId = hotelId[_hotelAddress][_hotelName];
+    return storeFoodItems[getHotelId].foodItems;
+
+}
+
+//if user buys the food item he gets the userNFT as the coupen where he can them in the future to get the descounts 
+function orderFood(string memory _hotelName,address _hotelAddress,string[] memory _foodItem)public  returns(uint256 _totalBill){
+    string memory empty = "";
+    
+     require( keccak256(abi.encodePacked((_hotelName))) != keccak256(abi.encodePacked((empty))),"enter any food items");
+     require(_hotelAddress != address(0),"hotel address cannot be zero");
+
+    uint256 getHotelId = hotelId[_hotelAddress][_hotelName];
+    string[] memory _foodItems =  storeFoodItems[getHotelId].foodItems;
+    for(uint256 i=0;i<_foodItem.length;i++){
+         require( keccak256(abi.encodePacked((_foodItem[i]))) != keccak256(abi.encodePacked((empty))),"enter any food items");
+        for(uint256 j=0;j<_foodItems.length;j++){
+            if( keccak256(abi.encodePacked((_foodItem[i]))) == keccak256(abi.encodePacked((_foodItems[j])))){
+               uint256 _price = foodPrice[getHotelId][_foodItems[j]];
+               _totalBill += _price;
+                 }
+        }
+
+      require(_totalBill>minBill ,"your not elibible to get the discount Nft");
+    //based on the totalbill the users will get the discount nfts
+     //500 = [100,200,300,400,500,600]
+          for(uint256 i=0;i<=totalBill.length;i++){
+              if(_totalBill<=totalBill[i]){
+                   _mint(msg.sender,discountNftToken[totalBill[i]],1,"");
+                   }
+            }
+    }
+
+      
+}
+//need to add the purpose addNewNftType(string memory _purpose, uint256 _totalSupply) 
+function setDiscountNftBasedOnTotalBill(uint256[] memory _totalBill,string[] memory _purpose) external onlyOwner{
+    require(_totalBill.length==_purpose.length,"both should be equal ");
+    //_purpose = "10% discount "
+    //_purpose = "20% discount
+    
+    for(uint256 i = 0;i<_totalBill.length;i++){
+        discountNftToken[_totalBill[i]] = idToNfts[_purpose[i]].nftId;
+        totalBill.push(_totalBill[i]);
+
+    }
 }
 
   }
