@@ -5,7 +5,6 @@ pragma solidity >=0.7.0 <0.9.0;
 // import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC1155/ERC1155.sol";
-
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/Pausable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Counters.sol";
@@ -58,6 +57,9 @@ constructor()ERC1155(""){
     mapping (uint256=>uint256) internal discountNftTotalsupply;
 
 
+    event orderedFood(string hotelName,address hotelAddress,string[] orderedFood,uint256 totalBill);
+
+
     //when hotel gets registered the manager of the hotel get the Nft as the proof use in the future for the hotel registration the nftId will be 1
 
 
@@ -75,28 +77,29 @@ constructor()ERC1155(""){
        
 
         _mint(msg.sender,idToNfts[_purpose].nftId,1,"");
+        
         idToNfts[_purpose].totalSupply++;
 
         registeredHotels.push(registered);
         hotelId[msg.sender][hotelName] = Id; 
 
     }
-    function removeHotel(string memory _hotelName,address _hotelAddress ) external  onlyOwner returns(uint256){
+    function removeHotel(string memory _hotelName,address _hotelManager ) external  onlyOwner returns(uint256){
         string memory _purpose = "Hotel";
-        require(whitelisteManager[msg.sender][_hotelAddress] == true,"hotelManger need to get approval from the owner");
+        require(whitelisteManager[msg.sender][_hotelManager] == true,"hotelManger need to get approval from the owner");
         require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel manager is missing the hotel registration nft ");
 
-        uint256 getHotelId = hotelId[_hotelAddress][_hotelName];
+        uint256 getHotelId = hotelId[_hotelManager][_hotelName];
         uint256 length = registeredHotels.length;
          
     
         for(uint256 i=0;i< length;i++){
             if(registeredHotels[i].hotelId==getHotelId){
-                _burn(_hotelAddress,idToNfts[_purpose].nftId,1);
+                _burn(_hotelManager,idToNfts[_purpose].nftId,1);
                 registeredHotels[i] = registeredHotels[length-1];
                 registeredHotels.pop();
                 idToNfts[_purpose].totalSupply--;
-                delete hotelId[_hotelAddress][_hotelName]; 
+                delete hotelId[_hotelManager][_hotelName]; 
                 return getHotelId;
 
             }
@@ -158,48 +161,90 @@ constructor()ERC1155(""){
 
     }
 
+    function updateTotalSupplyOfNft(string memory _purpose,uint256 _totalsupply) external onlyOwner  {
+      
+       idToNfts[_purpose].totalSupply = idToNfts[_purpose].totalSupply +_totalsupply;
+       
+       }
     function getNftIdPurpose() public view returns(NftIds[] memory){
         return getThePurposeOfNftIds;
     }
 
     //list the hotel items hotel wise
 
-    function listHotelFoodItems(string memory _hotelName,string[] memory _foodItems,uint256[] memory _price) external  {
-         string memory _purpose = "Hotel";
+    // function listHotelFoodItems(string memory _hotelName,string[] memory _foodItems,uint256[] memory _price) external  {
+    //      string memory _purpose = "Hotel";
+    //      require(whitelisteManager[owner()][msg.sender] == true,"hotelManger need to get approval from the owner");
+    //      require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel manager is missing the hotel registration nft ");
+    //      require(_foodItems.length==_price.length,"price and noof items should be of the same length");
+    //       uint256 getHotelId = hotelId[msg.sender][_hotelName];
+
+    //       storeFoodItems[getHotelId].foodItems = _foodItems;
+
+    //       for(uint256 i=0;i<_foodItems.length;i++){
+    //       foodPrice[getHotelId][_foodItems[i]] = _price[i] ;
+
+    //       }
+        // }
+
+function listHotelFoodItemsOrUpdatePrice(string memory _hotelName,string[] memory _foodItems,uint256[] memory _price,bool updatePrice ) external{
+     string memory _purpose = "Hotel";
          require(whitelisteManager[owner()][msg.sender] == true,"hotelManger need to get approval from the owner");
          require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel manager is missing the hotel registration nft ");
          require(_foodItems.length==_price.length,"price and noof items should be of the same length");
-          uint256 getHotelId = hotelId[msg.sender][_hotelName];
 
-          storeFoodItems[getHotelId].foodItems = _foodItems;
+         uint256 getHotelId = hotelId[msg.sender][_hotelName];
 
-          for(uint256 i=0;i<_foodItems.length;i++){
-          foodPrice[getHotelId][_foodItems[i]] = _price[i] ;
+         if(!updatePrice){
+             
+         for(uint256 i=0;i<_foodItems.length;i++){
+              storeFoodItems[getHotelId].foodItems.push(_foodItems[i]);
+             foodPrice[getHotelId][_foodItems[i]] = _price[i] ;
+         }
+         }
+         else{
+          uint256 length = storeFoodItems[getHotelId].foodItems.length;
+          uint256 count;
+                 
+            for(uint256 i=0;i<_foodItems.length;i++){
+                for(uint256 j=0;j<length;j++){
+                    if(keccak256(abi.encodePacked((_foodItems[i]))) == keccak256(abi.encodePacked((storeFoodItems[getHotelId].foodItems[j])))){
+                        foodPrice[getHotelId][_foodItems[i]] = _price[i];
+                    }
+                  }
+                  count++;
+            }
+            if(count == _foodItems.length){
+                revert("food item doesnt exist");
+            }
+         }
+        }
 
-          }
-        
+         
 
-}
 
 function setMinBill(uint256 _minBill) external onlyOwner{
     minBill = _minBill;
 }
 
-function foodMenu(address _hotelAddress,string memory _hotelName) public view returns(string[] memory){
-     uint256 getHotelId = hotelId[_hotelAddress][_hotelName];
+
+function foodMenu(address _hotelManager,string memory _hotelName) public view returns(string[] memory){
+     uint256 getHotelId = hotelId[_hotelManager][_hotelName];
     return storeFoodItems[getHotelId].foodItems;
 
 }
 
 //if user buys the food item he gets the userNFT as the coupen where he can them in the future to get the descounts 
-function orderFood(string memory _hotelName,address _hotelAddress,string[] memory _foodItem)public  returns(uint256 _totalBill){
+function orderFood(string memory _hotelName,address _hotelManager,string[] memory _foodItem)public  returns(uint256 _totalBill){
     string memory empty = "";
     
      require( keccak256(abi.encodePacked((_hotelName))) != keccak256(abi.encodePacked((empty))),"enter any food items");
-     require(_hotelAddress != address(0),"hotel address cannot be zero");
+     require(_hotelManager != address(0),"hotel address cannot be zero");
 
-    uint256 getHotelId = hotelId[_hotelAddress][_hotelName];
+    uint256 getHotelId = hotelId[_hotelManager][_hotelName];
+
     string[] memory _foodItems =  storeFoodItems[getHotelId].foodItems;
+
     for(uint256 i=0;i<_foodItem.length;i++){
          require( keccak256(abi.encodePacked((_foodItem[i]))) != keccak256(abi.encodePacked((empty))),"enter any food items");
         for(uint256 j=0;j<_foodItems.length;j++){
@@ -208,23 +253,26 @@ function orderFood(string memory _hotelName,address _hotelAddress,string[] memor
                _totalBill += _price;
                  }
         }
-
-      require(_totalBill>minBill ,"your not elibible to get the discount Nft");
+    emit orderedFood(_hotelName,_hotelManager,_foodItem,_totalBill);
     //based on the totalbill the users will get the discount nfts
      //500 = [100,200,300,400,500,600]
-          for(uint256 i=0;i<=totalBill.length;i++){
-              if(_totalBill<=totalBill[i]){
+  
+          for(uint256 i=0;i<totalBill.length;i++){
+              if(_totalBill<=totalBill[i]&&_totalBill>minBill){
                  discountNftIdCount[i].increment();
                   uint256 _current = discountNftIdCount[i].current();
                   require(_current<=discountNftTotalsupply[totalBill[i]],"all discount nfts are disturbuted ");
 
                    _mint(msg.sender,discountNftToken[totalBill[i]],1,"");
                    }
+                   
             }
     }
 
       
 }
+
+// function acceptOrdersByResturens()
 //need to add the purpose addNewNftType(string memory _purpose, uint256 _totalSupply) 
 function setDiscountNftBasedOnTotalBill(uint256[] memory _totalBill,string[] memory _purpose) external onlyOwner{
     require(_totalBill.length==_purpose.length,"both should be equal ");
@@ -242,6 +290,8 @@ function setDiscountNftBasedOnTotalBill(uint256[] memory _totalBill,string[] mem
 
 
   }
+
+
 
   
 
