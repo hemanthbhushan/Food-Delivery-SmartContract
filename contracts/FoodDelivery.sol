@@ -86,10 +86,11 @@ constructor()ERC1155(""){
     }
     function removeHotel(string memory _hotelName,address _hotelManager ) external  onlyOwner returns(uint256){
         string memory _purpose = "Hotel";
-        require(whitelisteManager[msg.sender][_hotelManager] == true,"hotelManger need to get approval from the owner");
+        require(whitelisteManager[msg.sender][_hotelManager] == true,"manager does not exist");
         require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel manager is missing the hotel registration nft ");
 
         uint256 getHotelId = hotelId[_hotelManager][_hotelName];
+        require(getHotelId>0,"hotel Id does not exist//hotel is not registered");
         uint256 length = registeredHotels.length;
          
     
@@ -113,6 +114,7 @@ constructor()ERC1155(""){
           require(_newAddress != address(0),"cant the make the zero address as the manager");
           require( balanceOf(msg.sender, idToNfts[_purpose].nftId)>0,"the hotel is missing the hotel registration nft ");
           uint256 _Id = hotelId[msg.sender][_hotelName];
+           require(_Id>0,"hotel Id does not exist//hotel is not registered");
               
                uint256 count;
                uint256 length = registeredHotels.length;
@@ -120,9 +122,12 @@ constructor()ERC1155(""){
                    if(_Id== registeredHotels[i].hotelId){
                        //internal function erc1155
                        _safeTransferFrom(msg.sender, _newAddress,idToNfts[_purpose].nftId ,1,"");
+                       delete hotelId[_newAddress][_hotelName];
                        whitelisteManager[owner()][msg.sender] = false;
                        registeredHotels[i].hotelAddress = _newAddress;
                        hotelId[_newAddress][_hotelName] = _Id;
+                       return _newAddress;
+                       
     }
                    count++;
                }
@@ -130,7 +135,7 @@ constructor()ERC1155(""){
                    revert("hotel is not registered");
                }
                 
-               return _newAddress;
+               
                //new manager should get the approval from the owner
  } 
 
@@ -162,6 +167,7 @@ constructor()ERC1155(""){
     }
 
     function updateTotalSupplyOfNft(string memory _purpose,uint256 _totalsupply) external onlyOwner  {
+        require(keccak256(abi.encodePacked(_purpose)) == keccak256(abi.encodePacked("hotel")),"cant change thwe total supply of the hotel");
       
        idToNfts[_purpose].totalSupply = idToNfts[_purpose].totalSupply +_totalsupply;
        
@@ -212,11 +218,11 @@ function listHotelFoodItemsOrUpdatePrice(string memory _hotelName,string[] memor
                         foodPrice[getHotelId][_foodItems[i]] = _price[i];
                     }
                   }
-                  count++;
+                //   count++;
             }
-            if(count == _foodItems.length){
-                revert("food item doesnt exist");
-            }
+            // if(count == _foodItems.length){
+            //     revert("food item doesnt exist please change the updation to false");
+            // }
          }
         }
 
@@ -242,6 +248,7 @@ function orderFood(string memory _hotelName,address _hotelManager,string[] memor
      require(_hotelManager != address(0),"hotel address cannot be zero");
 
     uint256 getHotelId = hotelId[_hotelManager][_hotelName];
+    require(getHotelId>0,"hotel Id does not exist//hotel is not registered");
 
     string[] memory _foodItems =  storeFoodItems[getHotelId].foodItems;
 
